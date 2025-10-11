@@ -15,7 +15,7 @@ connectDB();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-    origin: ["http://localhost:5173"], // your frontend URL
+    origin: ["http://localhost:5173", "https://femtor-admin.vercel.app"], // your frontend URL
     credentials: true, // allow cookies if you ever use them
 }))
 
