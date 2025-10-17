@@ -1,7 +1,8 @@
 const User = require('../model/userModel');
 const CoachProfile = require('../model/coachProfileModel');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// @desc    Create a new user (with profile picture upload)
 // @route   POST /api/users
 // @access  Public
 exports.createUserByAdmin = async (req, res) => {
@@ -80,7 +81,6 @@ exports.createUser = async (req, res) => {
     }
 };
 
-// @desc    Get all users
 // @route   GET /api/users
 // @access  Private/Admin
 exports.getAllUsers = async (req, res) => {
@@ -155,6 +155,98 @@ exports.deleteUser = async (req, res) => {
 
         res.status(200).json({ message: 'User removed successfully' });
 
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+// @desc    Login user
+// @route   POST /api/users/login
+// @access  Public
+exports.loginUser = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        console.log("Login attempt for email:", email, password);
+        // Check for user
+        const user = await User.findOne({ email }).select('+password');
+        if (!user) {
+            console.log("User not found for email:", email);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+            { userId: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(200).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePictureUrl: user.profilePictureUrl,
+            token,
+        });
+    } catch (error) {
+        console.log("Login error:", error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+exports.registerUser = async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+
+        if (!name || !email || !password || !role) {
+            return res.status(400).json({ message: 'Please provide name, email, password, and role.' });
+        }
+
+        const userExists = await User.findOne({ email }).select("+password");
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = new User({
+            name,
+            email,
+            password: hashedPassword,
+            role
+        });
+
+        if (req.file) {
+            newUser.profilePictureUrl = req.file.location;
+        }
+
+        const user = await newUser.save();
+
+        if (user.role === 'COACH') {
+            await CoachProfile.create({ userId: user._id, specialization: ['Not Specified'] });
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            profilePictureUrl: user.profilePictureUrl,
+            token,
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }

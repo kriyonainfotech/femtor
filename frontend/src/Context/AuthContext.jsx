@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
     const login = (userData) => {
         setUser(userData);
         localStorage.setItem("adminUser", JSON.stringify(userData));
+        localStorage.setItem("token", userData.token);
         navigate("/dashboard");
     };
 

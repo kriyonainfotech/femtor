@@ -43,7 +43,7 @@ const videoSchema = new mongoose.Schema(
         },
         progress: {
             type: String,
-            enum: ["pending", "processing", "completed", "failed", "queued"],
+            enum: ["initializing", "uploading", "processing", "completed", "failed", "queued"],
             default: "pending",
         },
         views: {
@@ -70,6 +70,6 @@ videoSchema.pre(/^find/, function (next) {
 
 const Video = mongoose.model("Video", videoSchema);
 
-Video.collection.createIndex({ title: "text", description: "text" });
+// Video.collection.createIndex({ title: "text", description: "text" });
 
 module.exports = Video;

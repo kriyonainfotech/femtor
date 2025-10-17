@@ -21,4 +21,6 @@ router.get('/getCoachProfiles', getAllCoachProfiles);
 router.put('/updateCoachProfile/:id', updateCoachProfile)
 router.put('/:id/order', reorderCoach);
 router.delete("/delete-coach/:id", deleteCoachProfile);
+router.get("/get-all-coaches", getAllCoachProfiles)
+
 module.exports = router;

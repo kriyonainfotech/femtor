@@ -14,13 +14,16 @@
     "@tailwindcss/vite": "^4.1.14",
     "axios": "^1.12.2",
     "framer-motion": "^12.23.22",
+    "hls.js": "^1.6.13",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.545.0",
     "prop-types": "^15.8.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.4",
-    "redux": "^5.0.1"
+    "redux": "^5.0.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

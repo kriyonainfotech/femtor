@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         minlength: 8,
-        select: false, // Do not send password in query results
+        // select: false, // Do not send password in query results
     },
     role: {
         type: String,
@@ -52,16 +52,16 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving, ONLY if it exists and was modified.
 // This hook now correctly handles users without passwords.
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 12);
-    next();
-});
+// userSchema.pre('save', async function (next) {
+//     if (!this.isModified('password')) return next();
+//     this.password = await bcrypt.hash(this.password, 12);
+//     next();
+// });
 
-// Method to compare candidate password with the user's actual password
-userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
-    return await bcrypt.compare(candidatePassword, userPassword);
-};
+// // Method to compare candidate password with the user's actual password
+// userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
+//     return await bcrypt.compare(candidatePassword, userPassword);
+// };
 
 const User = mongoose.model('User', userSchema);
 

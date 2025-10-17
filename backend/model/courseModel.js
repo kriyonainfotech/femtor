@@ -4,11 +4,9 @@ const courseSchema = new mongoose.Schema({
     title: {
         type: String,
         required: [true, 'A course must have a title.'],
-        trim: true,
     },
     description: {
         type: String,
-        trim: true,
     },
     price: {
         type: Number,
@@ -18,13 +16,11 @@ const courseSchema = new mongoose.Schema({
     artistId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Reference to the User model
-        required: true,
     },
     // The category of the course
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category', // Reference to the Category model you will create
-        required: true,
     },
     thumbnailUrl: {
         type: String,

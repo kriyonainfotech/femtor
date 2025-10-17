@@ -22,5 +22,6 @@ router.get('/', getAllCategories)
 router.put('/:id/order', changeCategoryOrder)
 router.delete('/delete-category/:id', deleteCategory)
 router.put('/update-category/:id', updateCategory)
+router.get('/get-all-categories', getAllCategories)
 
 module.exports = router;

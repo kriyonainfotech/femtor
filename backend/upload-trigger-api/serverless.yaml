@@ -1,0 +1,23 @@
+service: upload-trigger-api
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1 # Or your preferred AWS region
+
+functions:
+  uploadTrigger:
+    handler: index.handler
+    events:
+      - s3:
+          # CHANGE THIS to your raw video upload bucket name
+          bucket: video-raw-uploads
+          event: s3:ObjectCreated:*
+          existing: true
+          rules:
+            - prefix: uploads/videos/ # Optional: only trigger for files in this folder
+
+    environment:
+      # CHANGE THIS to the full public URL of your main server's webhook
+      S3_WEBHOOK_URL: https://cf6c33235b4b.ngrok-free.app/api/videos/s3-trigger

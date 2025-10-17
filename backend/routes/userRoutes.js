@@ -11,5 +11,7 @@ router.get('/get-users', userController.getAllUsers);
 router.get('/get-user/:id', userController.getUserById);
 router.put('/update-user/:id', upload.single('profilePicture'), userController.updateUser)
 router.delete('/delete-user/:id', userController.deleteUser);
+router.post('/login-admin', userController.loginUser);
+router.post('/register-user', userController.registerUser);
 
 module.exports = router;

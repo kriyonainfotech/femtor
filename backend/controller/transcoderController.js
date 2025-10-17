@@ -1,187 +1,150 @@
-const catchAsync = require("../utilis/catch-async");
+const { WebSocket } = require("ws"); // 1. Import WebSocket to check connection status
+const { userConnections } = require("../utils/websocket"); // 2. Import the live connections map
+const { redisClient } = require("../redis/redis");
+
 require("dotenv").config();
 
-const {
-    decrement,
-    dequeueJobFromQueue,
-    enqueJobInQueue,
-    getKey,
-    increment,
-    setKey,
-    getQueueLength,
-} = require("../redis/redis");
-
+const { decrement, getQueueLength, increment, dequeueJobFromQueue } = require("../redis/redis");
 const { REDIS_KEYS, VIDEO_PROCESS_STATES } = require("../constants");
 const { triggerTranscodingJob } = require("../utils/ecs-transcoding-trigger");
 
-const Video = require("../models/video.model");
-const {
-    deleteObjectFile,
-    getObjectMetadata,
-} = require("../utils/s3-signed-url");
+const Video = require("../model/videoModel");
+const { getObjectMetadata } = require("../utils/s3-signed-url");
 
-const handleS3Trigger = catchAsync(async (req, res, next) => {
-    console.log("S3 trigger received!");
 
-    const { s3EventData } = req.body;
-    // const s3EventData = req.body.Records[0].s3;
+// --- 2. CREATE A HELPER FUNCTION TO SEND OR QUEUE MESSAGES ---
+/**
+ * Sends a message to a user if they are connected, otherwise queues it in Redis.
+ * @param {string} userId The ID of the user to notify.
+ * @param {object} message The message object to send.
+ */
+async function sendOrQueueMessage(userId, message) {
+    const userSocket = userConnections.get(userId);
+    const messageString = JSON.stringify(message);
 
-    if (!s3EventData) {
-        return res.status(400).json({
-            status: "failed",
-            message: "No S3EventData found!",
-        });
-    }
-
-    const key = s3EventData.object.key;
-    const metadata = await getObjectMetadata(key);
-
-    console.log("Metadata:", metadata);
-
-    const currentJobCount =
-        parseInt(await getKey(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT)) || 0;
-    console.log("Current job count:", currentJobCount);
-    const fileName = key.split("/").pop().split(".")[0];
-
-    const video = await Video.create({
-        fileName,
-        progress: VIDEO_PROCESS_STATES.PENDING,
-        objectKey: key,
-        owner: metadata.userid,
-        title: metadata.title,
-        description: metadata.description,
-    });
-
-    if (!video) {
-        return res.status(500).json({
-            status: "failed",
-            message: "Failed to create video!",
-        });
-    }
-
-    if (currentJobCount <= 5) {
-        await increment(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT);
-        console.log("Current job count incremented:", currentJobCount + 1);
-
-        const job = {
-            fileName,
-            objectKey: key,
-            progress: VIDEO_PROCESS_STATES.PROCESSING,
-        };
-
-        await triggerTranscodingJob(job);
-        console.log(`Transcoding job trigger for ${fileName}!`);
-
-        await Video.findByIdAndUpdate(video._id, {
-            progress: VIDEO_PROCESS_STATES.PROCESSING,
-        });
-
-        console.log("Video progress updated to PROCESSING!");
-        return res.status(200).json({
-            status: "success",
-            message: `Transcoding job triggered for ${fileName}!`,
-        });
+    if (userSocket && userSocket.readyState === WebSocket.OPEN) {
+        console.log(`[WebSocket] User ${userId} is online. Sending message directly.`);
+        userSocket.send(messageString);
     } else {
-        console.log("Current job count exceeded 5:", currentJobCount);
-        const job = {
-            fileName,
-            objectKey: key,
-            progress: VIDEO_PROCESS_STATES.QUEUED,
-        };
-
-        await enqueJobInQueue(job);
-        console.log(`Transcoding job queued for ${fileName}!`);
-
-        await Video.findByIdAndUpdate(video._id, {
-            progress: VIDEO_PROCESS_STATES.QUEUED,
-        });
-        console.log("Video progress updated to QUEUED!");
-
-        return res.status(200).json({
-            status: "success",
-            message: `Transcoding job queued for ${fileName}!`,
-        });
+        console.log(`[Redis] User ${userId} is offline. Queuing message in their mailbox.`);
+        const redisKey = `notifications:${userId}`;
+        // THE FIX: Use lowercase 'rpush'
+        await redisClient.rpush(redisKey, messageString);
     }
-});
+}
 
-const handleECSTrigger = catchAsync(async (req, res, next) => {
-    console.log("ECS trigger received!");
 
-    const { key, progress, videoResolutions, thumbnailUrl, subtitleUrl } =
-        req.body;
-    console.log({ key, progress, videoResolutions, thumbnailUrl, subtitleUrl });
+/**
+ * Webhook #1: Triggered by S3 (via Lambda) when a file upload is completed.
+ * This function's job is to:
+ * 1. Find the video record that was created by `initializeUpload`.
+ * 2. Update its status to 'processing'.
+ * 3. Calculate an estimated processing time.
+ * 4. Notify the frontend via WebSocket that processing has officially begun.
+ * 5. Trigger the actual ECS transcoding task.
+ */
+exports.handleS3Trigger = async (req, res, next) => {
+    console.log("--- S3 TRIGGER WEBHOOK RECEIVED ---");
+    const { objectKey } = req.body;
 
-    const video = await Video.findOne({ objectKey: key });
-    console.log("Video:", video);
-
-    if (!video) {
-        return res.status(404).json({
-            status: "failed",
-            message: "Video not found!",
-        });
-    }
-
-    if (progress === VIDEO_PROCESS_STATES.COMPLETED) {
-        video.progress = VIDEO_PROCESS_STATES.COMPLETED;
-        await deleteObjectFile(key);
-    }
-
-    if (progress === VIDEO_PROCESS_STATES.FAILED) {
-        video.progress = VIDEO_PROCESS_STATES.FAILED;
-    }
-
-    video.videoResolutions = videoResolutions;
-    video.thumbnailUrl = thumbnailUrl;
-    video.subtitleUrl = subtitleUrl;
-    await video.save();
-
-    await decrement(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT);
-
-    const currentJobCount =
-        parseInt(await getKey(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT)) || 0;
-    const queueLength = await getQueueLength();
-
-    if (queueLength === 0) {
-        if (currentJobCount > 0) {
-            await setKey(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT, 0);
+    try {
+        const video = await Video.findOne({ objectKey });
+        if (!video) {
+            console.error(`[S3 Trigger] FAILED: A video with objectKey ${objectKey} was not found in the database. This should not happen.`);
+            // We return a 404 but don't crash, as the user can't do anything about this.
+            return res.status(404).json({ message: "Video record not found for the given key." });
         }
 
-        console.log("Trigger from ECS: Processing queue is empty.");
-        return res.status(200).json({
-            message: "Trigger from ECS: Queue is empty",
-        });
-    }
+        console.log(`[S3 Trigger] Found video ${video._id}. Updating its status to 'processing'.`);
+        video.progress = VIDEO_PROCESS_STATES.PROCESSING;
 
-    const availableSlots = 5 - currentJobCount;
-    console.log("Available slots:", availableSlots);
-
-    if (availableSlots > 0) {
-        for (let i = 0; i < availableSlots; i++) {
-            const job = await dequeueJobFromQueue();
-
-            if (!job) {
-                break;
+        // --- Calculate and save the estimated processing time ---
+        try {
+            const metadata = await getObjectMetadata(objectKey);
+            if (metadata.contentLength) {
+                video.estimatedProcessingTime = calculateProcessingTime(metadata.contentLength);
+                console.log(`[S3 Trigger] Estimated processing time: ${Math.ceil(video.estimatedProcessingTime / 60)} minutes.`);
             }
+        } catch (metaError) {
+            console.warn(`[S3 Trigger] Warning: Could not fetch metadata to estimate time for ${objectKey}.`, metaError);
+        }
+        await video.save();
 
-            job.progress = VIDEO_PROCESS_STATES.PROCESSING;
-            await increment(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT);
-            await triggerTranscodingJob(job);
+        // --- 3. USE THE NEW HELPER FUNCTION ---
+        const userId = video.owner.toString();
+        const processingMessage = {
+            videoId: video._id.toString(),
+            status: VIDEO_PROCESS_STATES.PROCESSING,
+            estimatedProcessingTime: video.estimatedProcessingTime
+        };
+        await sendOrQueueMessage(userId, processingMessage);
 
-            await Video.findOneAndUpdate(
-                { objectKey: job.objectKey },
-                {
-                    progress: VIDEO_PROCESS_STATES.PROCESSING,
-                    playlist,
-                }
-            );
+        // --- Trigger the ECS task to do the heavy lifting ---
+        console.log("[S3 Trigger] Triggering the ECS transcoding job.");
+        await triggerTranscodingJob({ objectKey });
 
-            console.log(`Transcoding job trigger for ${job.fileName}!`);
+        // Respond to the Lambda to let it know the request was accepted.
+        res.status(200).json({ status: "success", message: "Processing job successfully triggered." });
+
+    } catch (error) {
+        console.error("[S3 Trigger] FATAL ERROR:", error);
+        const videoToFail = await Video.findOne({ objectKey });
+        if (videoToFail) {
+            videoToFail.progress = VIDEO_PROCESS_STATES.FAILED;
+            videoToFail.error = "A critical error occurred when starting the processing job.";
+            await videoToFail.save();
+        }
+        next(error); // Pass the error to your global error handler.
+    }
+};
+
+/**
+ * Webhook #2: Triggered by the ECS task when transcoding is complete OR has failed.
+ * This function's job is to:
+ * 1. Find the video record.
+ * 2. Update its final status ('completed' or 'failed').
+ * 3. Save the final video resolution URLs.
+ * 4. Notify the frontend via WebSocket that the job is finished.
+ */
+exports.handleECSTrigger = async (req, res, next) => {
+    console.log("--- ECS TRIGGER WEBHOOK RECEIVED ---");
+    const { key, progress, videoResolutions } = req.body;
+
+    try {
+        console.log(`[DB Lookup] Searching for Video document with objectKey: "${key}"`);
+
+        const video = await Video.findOne({ objectKey: key });
+        if (!video) {
+            console.error(`[DB Lookup] FAILED: Video with objectKey "${key}" was NOT FOUND in the database.`);
+            console.error("[DB Lookup] This is the final step, and it failed. The HLS links will be lost.");
+            return res.status(404).json({ message: "Video not found!" });
         }
 
-        return res.status(200).json({
-            message: `Trigger from ECS: ${availableSlots} Jobs triggered`,
-        });
-    }
-});
+        console.log(`[DB Lookup] SUCCESS: Found video with ID: ${video._id}. Now updating...`);
 
-module.exports = { handleS3Trigger, handleECSTrigger };
+        video.progress = progress; // will be 'completed' or 'failed'
+        video.videoResolutions = videoResolutions;
+        await video.save();
+        console.log(`[DB] Updated video ${video._id} with final status: ${progress}`);
+
+        // --- 4. USE THE NEW HELPER FUNCTION AGAIN ---
+        const userId = video.owner.toString();
+        const finalMessage = {
+            videoId: video._id.toString(),
+            status: progress,
+            videoResolutions,
+        };
+        await sendOrQueueMessage(userId, finalMessage);
+
+        // --- Your Redis and queue logic can go here ---
+        // For example, decrementing the active job counter.
+        await decrement(REDIS_KEYS.CURRENT_VIDEO_TRANSCODING_JOB_COUNT);
+
+        // Respond to the ECS task to let it know the webhook was successful.
+        res.status(200).json({ message: "ECS trigger processed successfully." });
+
+    } catch (error) {
+        console.error("[ECS Trigger] FATAL ERROR:", error);
+        next(error);
+    }
+};

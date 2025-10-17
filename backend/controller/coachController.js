@@ -159,3 +159,26 @@ exports.deleteCoachProfile = async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
+
+exports.getAllCoaches = async (req, res) => {
+    try {
+        // Find all users with role 'COACH'
+        const coaches = await User.find({ role: 'COACH' }).select('name email');
+
+        // For each coach, fetch their profile
+        const coachesWithProfiles = await Promise.all(coaches.map(async coach => {
+            const profile = await CoachProfile.findOne({ userId: coach._id });
+            return {
+                user: coach,
+                profile
+            };
+        }));
+
+        res.status(200).json({
+            message: 'Coaches fetched successfully',
+            coaches: coachesWithProfiles
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
