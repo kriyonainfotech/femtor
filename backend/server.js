@@ -25,7 +25,7 @@ initializeWebSocket(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-    origin: ["http://localhost:5173", "http://admin.femtormasterclass.com"],
+    origin: ["http://localhost:5173", "https://admin.femtormasterclass.com"],
     credentials: true,
 }));
 

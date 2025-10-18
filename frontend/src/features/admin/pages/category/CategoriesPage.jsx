@@ -22,7 +22,7 @@ const CategoriesPage = () => {
     const fetchCategories = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${APIURL}/api/categories`);
+            const response = await axios.get(`${APIURL}/api/categories/get-all-categories`);
             setCategories(response.data);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to fetch categories.');
@@ -130,14 +130,14 @@ const CategoriesPage = () => {
                     <button
                         onClick={() => handleMoveUp(index)}
                         disabled={index === 0}
-                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-40"
+                        className="p-1 rounded-md bg-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600  disabled:opacity-40"
                     >
                         <ArrowUp size={16} color='#fff' />
                     </button>
                     <button
                         onClick={() => handleMoveDown(index)}
                         disabled={index === categories.length - 1} // use categories state
-                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-40"
+                        className="p-1 rounded-md bg-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600  disabled:opacity-40"
                     >
                         <ArrowDown size={16} color="#fff" />
                     </button>

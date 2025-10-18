@@ -103,6 +103,13 @@ const ecsClient = new ECSClient({
  * @param {object} job - Contains the objectKey for the video to be processed.
  */
 async function triggerTranscodingJob(job) {
+    console.log("--- TRANSCODING TASK STARTED ---");
+    console.log("--- ENVIRONMENT VARIABLES ---");
+    console.log("INPUT_BUCKET:", process.env.INPUT_BUCKET);
+    console.log("OUTPUT_BUCKET:", process.env.OUTPUT_BUCKET);
+    console.log("OBJECT_KEY:", process.env.OBJECT_KEY); // The video file to process
+    console.log("WEBHOOK_URL:", process.env.WEBHOOK_URL); // The URL to call when done
+    console.log("----------------------------");
     console.log(`[ECS Trigger] Starting task for object: ${job.objectKey}`);
 
     // These values MUST exist in your backend server's .env file.

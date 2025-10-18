@@ -126,31 +126,28 @@ const CoachesPage = () => {
                     <button
                         onClick={() => handleMoveUp(index)}
                         disabled={index === 0}
-                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-40"
+                        className="p-1 rounded-md bg-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40"
                     >
-                        <ArrowUp size={16} color="#fff" />
+                        <ArrowUp size={16} color="white" />
                     </button>
                     <button
                         onClick={() => handleMoveDown(index)}
                         disabled={index === coaches.length - 1}
-                        className="p-1 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-700 disabled:opacity-40"
+                        className="p-1 rounded-md bg-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40"
                     >
-                        <ArrowDown size={16} color="#fff" />
+                        <ArrowDown size={16} color="white" />
                     </button>
                 </div>
             ),
         },
         {
             header: "Coach Name",
-            accessor: "userId.name", // for clarity, but cell overrides it
+            accessor: "userId.name",
             cell: (row) => (
                 <div className="flex items-center gap-2">
-                    <div className="font-medium text-gray-100">
+                    <div className="font-medium text-gray-800 dark:text-gray-100">
                         {row.userId.name}
                     </div>
-                    {/* {row.isBestseller && (
-                        <Star size={16} className="text-yellow-500 fill-current" />
-                    )} */}
                 </div>
             ),
         },
@@ -158,7 +155,7 @@ const CoachesPage = () => {
             header: "Email",
             accessor: "userId.email",
             cell: (row) => (
-                <div className="font-medium text-gray-100">
+                <div className="font-medium text-gray-700 dark:text-gray-300">
                     {row.userId.email}
                 </div>
             ),
@@ -167,16 +164,11 @@ const CoachesPage = () => {
             header: "Category",
             accessor: "categories",
             cell: (row) => (
-                <div className="font-medium text-gray-100">
+                <div className="font-medium text-gray-700 dark:text-gray-300">
                     {row.categories?.length ? row.categories.join(", ") : "-"}
                 </div>
             ),
         },
-        // {
-        //     header: "Display Order",
-        //     accessor: "displayOrder",
-        //     sortable: true,
-        // },
         {
             header: "Facebook",
             accessor: "socialMediaLinks.facebook.url",
@@ -186,12 +178,12 @@ const CoachesPage = () => {
                         href={row.socialMediaLinks.facebook.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-white underline"
+                        className="text-blue-600 dark:text-blue-400 underline"
                     >
                         FB
                     </a>
                 ) : (
-                    "-"
+                    <span className="text-gray-500 dark:text-gray-400">-</span>
                 ),
         },
         {
@@ -203,14 +195,15 @@ const CoachesPage = () => {
                         href={row.socialMediaLinks.instagram.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-white underline"
+                        className="text-pink-600 dark:text-pink-400 underline"
                     >
                         IG
                     </a>
                 ) : (
-                    "-"
+                    <span className="text-gray-500 dark:text-gray-400">-</span>
                 ),
         },
+
 
     ];
 

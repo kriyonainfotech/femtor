@@ -228,10 +228,7 @@ exports.getAllLessons = async (req, res, next) => {
         next(new AppError("Failed to fetch lessons.", 500));
     }
 };
-/**
- * Get all lessons by course ID
- * GET /api/courses/:courseId/lessons
- */
+
 exports.getLessonsByCourseId = async (req, res, next) => {
     try {
         const { id } = req.params;

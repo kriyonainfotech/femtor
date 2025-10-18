@@ -48,10 +48,23 @@ exports.handleS3Trigger = async (req, res, next) => {
     const { objectKey } = req.body;
 
     try {
-        const video = await Video.findOne({ objectKey });
+        // --- THIS IS THE FIX ---
+        // 1. Check if the objectKey exists in the request body.
+        if (!req.body.objectKey) {
+            console.error("[S3 Trigger] FAILED: Webhook did not contain an 'objectKey'.");
+            return res.status(400).json({ message: "Missing objectKey in request body." });
+        }
+
+        // 2. Decode the incoming objectKey from the AWS webhook.
+        const decodedObjectKey = decodeURIComponent(req.body.objectKey.replace(/\+/g, ' '));
+        console.log(`[S3 Trigger] Received key: "${req.body.objectKey}". Decoded to: "${decodedObjectKey}"`);
+        // --- END OF FIX ---
+
+        // 3. Use the DECODED key to find the video in the database.
+        const video = await Video.findOne({ objectKey: decodedObjectKey });
+
         if (!video) {
-            console.error(`[S3 Trigger] FAILED: A video with objectKey ${objectKey} was not found in the database. This should not happen.`);
-            // We return a 404 but don't crash, as the user can't do anything about this.
+            console.error(`[S3 Trigger] FAILED: A video with decoded objectKey "${decodedObjectKey}" was not found in the database. This should not happen.`);
             return res.status(404).json({ message: "Video record not found for the given key." });
         }
 
@@ -59,25 +72,25 @@ exports.handleS3Trigger = async (req, res, next) => {
         video.progress = VIDEO_PROCESS_STATES.PROCESSING;
 
         // --- Calculate and save the estimated processing time ---
-        try {
-            const metadata = await getObjectMetadata(objectKey);
-            if (metadata.contentLength) {
-                video.estimatedProcessingTime = calculateProcessingTime(metadata.contentLength);
-                console.log(`[S3 Trigger] Estimated processing time: ${Math.ceil(video.estimatedProcessingTime / 60)} minutes.`);
-            }
-        } catch (metaError) {
-            console.warn(`[S3 Trigger] Warning: Could not fetch metadata to estimate time for ${objectKey}.`, metaError);
-        }
-        await video.save();
+        // try {
+        //     const metadata = await getObjectMetadata(objectKey);
+        //     if (metadata.contentLength) {
+        //         video.estimatedProcessingTime = calculateProcessingTime(metadata.contentLength);
+        //         console.log(`[S3 Trigger] Estimated processing time: ${Math.ceil(video.estimatedProcessingTime / 60)} minutes.`);
+        //     }
+        // } catch (metaError) {
+        //     console.warn(`[S3 Trigger] Warning: Could not fetch metadata to estimate time for ${objectKey}.`, metaError);
+        // }
+        // await video.save();
 
         // --- 3. USE THE NEW HELPER FUNCTION ---
-        const userId = video.owner.toString();
-        const processingMessage = {
-            videoId: video._id.toString(),
-            status: VIDEO_PROCESS_STATES.PROCESSING,
-            estimatedProcessingTime: video.estimatedProcessingTime
-        };
-        await sendOrQueueMessage(userId, processingMessage);
+        // const userId = video.owner.toString();
+        // const processingMessage = {
+        //     videoId: video._id.toString(),
+        //     status: VIDEO_PROCESS_STATES.PROCESSING,
+        //     estimatedProcessingTime: video.estimatedProcessingTime
+        // };
+        // await sendOrQueueMessage(userId, processingMessage);
 
         // --- Trigger the ECS task to do the heavy lifting ---
         console.log("[S3 Trigger] Triggering the ECS transcoding job.");
