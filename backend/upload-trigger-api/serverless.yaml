@@ -20,4 +20,4 @@ functions:
 
     environment:
       # CHANGE THIS to the full public URL of your main server's webhook
-      S3_WEBHOOK_URL: https://femtor-backend.vercel.app/api/videos/s3-trigger
+      S3_WEBHOOK_URL: https://cf6c33235b4b.ngrok-free.app/api/videos/s3-trigger

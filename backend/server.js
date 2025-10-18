@@ -5,7 +5,6 @@ const http = require("http"); // You need http
 const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
-
 // 1. IMPORT your WebSocket initializer
 const { initializeWebSocket } = require('./utils/websocket'); // Adjust path if needed
 
@@ -25,7 +24,10 @@ initializeWebSocket(server);
 // Middleware (no changes here)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors("*"));
+app.use(cors({
+    origin: ["http://localhost:5173", "http://admin.femtormasterclass.com"],
+    credentials: true,
+}));
 
 
 // --- REMOVED ---

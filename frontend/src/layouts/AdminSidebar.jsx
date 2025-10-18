@@ -2,14 +2,14 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { X, Users, LayoutDashboard, PanelLeft } from "lucide-react";
+import { X, Users, LayoutDashboard, PanelLeft, UserCheck, NotebookPen, Layers } from "lucide-react";
 
 const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
     { name: "Users", path: "/manage-users", icon: <Users size={20} /> },
-    { name: "Coaches", path: "/manage-coaches", icon: <Users size={20} /> },
-    { name: "Categories", path: "/manage-category", icon: <Users size={20} /> },
-    { name: "Courses", path: "/manage-courses", icon: <Users size={20} /> },
+    { name: "Coaches", path: "/manage-coaches", icon: <UserCheck size={20} /> },
+    { name: "Categories", path: "/manage-category", icon: <Layers size={20} /> },
+    { name: "Courses", path: "/manage-courses", icon: <NotebookPen size={20} /> },
 ];
 
 export default function AdminSidebar({ sidebarOpen, setSidebarOpen, isCollapsed }) {

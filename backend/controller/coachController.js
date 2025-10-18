@@ -4,57 +4,61 @@ const User = require('../model/userModel');
 exports.createFullCoach = async (req, res) => {
     try {
         console.log("🔥 createFullCoach route hit!", req.body);
-        const { name, email, bio, categories, isBestseller, introVideoUrl, socialMediaLinks } = req.body;
+
+        const { userId, bio, categories, isBestseller, introVideoUrl, socialMediaLinks } = req.body;
 
         // Basic validation
-        if (!name || !email || !categories) {
-            return res.status(400).json({ message: 'Please provide name, email, and at least one category.' });
+        if (!userId || !categories) {
+            return res.status(400).json({ message: "Please provide userId and at least one category." });
         }
 
-        // 1️⃣ Check if user already exists
-        const userExists = await User.findOne({ email });
-        if (userExists) {
-            return res.status(400).json({ message: 'A user with this email already exists' });
+        // 1️⃣ Check if user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
         }
 
-        // 2️⃣ Create the new User with role 'COACH'
-        const newUser = new User({
-            name,
-            email,
-            role: 'COACH',
-            createdBy: 'ADMIN'
-        });
-        const savedUser = await newUser.save();
+        // 2️⃣ Check if user is already a coach
+        const existingCoach = await CoachProfile.findOne({ userId });
+        if (existingCoach) {
+            return res.status(400).json({ message: "This user is already assigned as a coach." });
+        }
 
-        // 3️⃣ Counting logic for `index`
+        // 3️⃣ Update the user role to COACH (if not already)
+        if (user.role !== "COACH") {
+            user.role = "COACH";
+            await user.save();
+        }
+
+        // 4️⃣ Counting logic for `index`
         const count = await CoachProfile.countDocuments();
-        const newIndex = count; // 0-based index (or use count + 1 if you prefer 1-based)
+        const newIndex = count; // 0-based index
 
-        // 4️⃣ Create the Coach Profile linked to the new user
+        // 5️⃣ Create the Coach Profile linked to the existing user
         const newCoachProfile = new CoachProfile({
-            userId: savedUser._id,
+            userId,
             bio,
-            categories: Array.isArray(categories) ? categories : categories.split(',').map(c => c.trim()),
+            categories: Array.isArray(categories)
+                ? categories
+                : categories.split(",").map((c) => c.trim()),
             isBestseller,
             introVideoUrl,
             socialMediaLinks,
-            index: newIndex
+            index: newIndex,
         });
 
         await newCoachProfile.save();
-
+        console.log("✅ Coach profile created:", newCoachProfile);
         res.status(201).json({
-            message: 'Coach created successfully',
-            user: savedUser,
-            profile: newCoachProfile
+            message: "Coach profile created successfully",
+            user,
+            profile: newCoachProfile,
         });
-
     } catch (error) {
-        console.error("Error in createFullCoach:", error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        console.error("❌ Error in createFullCoach:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
-
 
 // @desc    Get all coach profiles (populated with user data)
 // @route   GET /api/coaches

@@ -18,7 +18,7 @@ const {
 //     .delete(protect, admin, deleteCategory);
 
 router.post('/create-category', createCategory)
-router.get('/', getAllCategories)
+router.get('/get-all-categories', getAllCategories)
 router.put('/:id/order', changeCategoryOrder)
 router.delete('/delete-category/:id', deleteCategory)
 router.put('/update-category/:id', updateCategory)
